@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인더스트리 레이더</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e5e3de;
+    --text: #1c1c1a;
+    --text-dim: #6b6b66;
+    --accent: #1c1c1a;
+    --accent-fg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161614;
+      --surface: #201f1d;
+      --border: #34322e;
+      --text: #ececea;
+      --text-dim: #9a9893;
+      --accent: #ececea;
+      --accent-fg: #161614;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 20px 80px; }
+  header h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  header p { color: var(--text-dim); margin: 0 0 32px; font-size: 14px; }
+
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .tab {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .tab.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 28px 24px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .card-head h2 { font-size: 18px; margin: 0; }
+  .card-head .date { color: var(--text-dim); font-size: 13px; }
+
+  .actions { display: flex; gap: 8px; margin-bottom: 20px; }
+  button.dl {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  button.dl:hover { border-color: var(--text-dim); }
+  button.dl:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .preview { font-size: 14px; }
+  .preview h2 { font-size: 16px; margin: 20px 0 8px; }
+  .preview h3 { font-size: 14px; margin: 16px 0 6px; color: var(--text-dim); }
+  .preview p { margin: 6px 0; }
+  .preview ul { margin: 6px 0; padding-left: 20px; }
+  .preview code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .preview a { color: inherit; }
+  .preview strong { color: var(--text); }
+
+  .empty { color: var(--text-dim); font-size: 14px; padding: 12px 0; }
+  .foot { margin-top: 28px; color: var(--text-dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>인더스트리 레이더</h1>
+    <p>자동차 · 건설 · 식품 · 컨설팅 산업 트렌드를 매일 수집해 정리합니다.</p>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2 id="cardTitle">-</h2>
+      <span class="date" id="cardDate"></span>
+    </div>
+    <div class="actions">
+      <button class="dl" id="btnMd" disabled>MD 다운로드</button>
+      <button class="dl" id="btnDoc" disabled>Word 다운로드</button>
+    </div>
+    <div class="preview" id="preview"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="foot">각 리포트는 뉴스 기사를 Claude로 요약한 결과이며, 참고용입니다.</div>
+</div>
+
+<script>
+const INDUSTRIES = [
+  { key: "자동차", emoji: "🚗" },
+  { key: "건설", emoji: "🏗" },
+  { key: "식품", emoji: "🍚" },
+  { key: "컨설팅", emoji: "📊" },
+];
+
+let current = INDUSTRIES[0].key;
+let latestSection = null; // { date, title, body }
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function inlineMd(s) {
+  s = escapeHtml(s);
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/`(.+?)`/g, "<code>$1</code>");
+  s = s.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+
+function mdToHtml(md) {
+  const lines = md.split("\n");
+  const out = [];
+  let inList = false;
+  const closeList = () => { if (inList) { out.push("</ul>"); inList = false; } };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^## /.test(line)) { closeList(); out.push("<h2>" + escapeHtml(line.replace(/^## /, "")) + "</h2>"); }
+    else if (/^### /.test(line)) { closeList(); out.push("<h3>" + escapeHtml(line.replace(/^### /, "")) + "</h3>"); }
+    else if (/^- /.test(line)) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push("<li>" + inlineMd(line.replace(/^- /, "")) + "</li>");
+    } else if (line.trim() === "") { closeList(); }
+    else { closeList(); out.push("<p>" + inlineMd(line) + "</p>"); }
+  }
+  closeList();
+  return out.join("\n");
+}
+
+// logs/{industry}.md 안에서 가장 최근 "## YYYY-MM-DD · ..." 섹션만 추출
+function extractLatestSection(md) {
+  const re = /^## (\d{4}-\d{2}-\d{2}) · (.+)$/gm;
+  let match, last = null;
+  while ((match = re.exec(md)) !== null) {
+    last = { date: match[1], title: match[2], start: match.index };
+  }
+  if (!last) return null;
+  const body = md.slice(last.start).trim();
+  return { date: last.date, title: last.title, body };
+}
+
+function buildDocHtml(title, bodyHtml) {
+  return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+<style>
+  body { font-family: '맑은 고딕', sans-serif; line-height: 1.7; }
+  h2 { font-size: 20pt; margin-bottom: 4pt; }
+  h3 { font-size: 13pt; color: #555; margin: 14pt 0 4pt; }
+  p { font-size: 11pt; margin: 4pt 0; }
+  li { font-size: 11pt; margin: 2pt 0; }
+  code { background: #f0f0f0; padding: 1pt 3pt; }
+</style></head>
+<body>${bodyHtml}</body></html>`;
+}
+
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function renderTabs() {
+  const tabs = document.getElementById("tabs");
+  tabs.innerHTML = "";
+  for (const ind of INDUSTRIES) {
+    const btn = document.createElement("button");
+    btn.className = "tab" + (ind.key === current ? " active" : "");
+    btn.textContent = `${ind.emoji} ${ind.key}`;
+    btn.onclick = () => { current = ind.key; renderTabs(); loadIndustry(ind.key); };
+    tabs.appendChild(btn);
+  }
+}
+
+async function loadIndustry(key) {
+  document.getElementById("cardTitle").textContent = key + " 트렌드 리포트";
+  document.getElementById("cardDate").textContent = "";
+  document.getElementById("preview").innerHTML = '<div class="empty">불러오는 중...</div>';
+  document.getElementById("btnMd").disabled = true;
+  document.getElementById("btnDoc").disabled = true;
+  latestSection = null;
+
+  try {
+    const res = await fetch(`logs/${encodeURIComponent(key)}.md?_=${Date.now()}`);
+    if (!res.ok) throw new Error("not found");
+    const md = await res.text();
+    const section = extractLatestSection(md);
+    if (!section) {
+      document.getElementById("preview").innerHTML = '<div class="empty">아직 리포트가 없습니다.</div>';
+      return;
+    }
+    latestSection = section;
+    document.getElementById("cardDate").textContent = section.date;
+    document.getElementById("preview").innerHTML = mdToHtml(section.body);
+    document.getElementById("btnMd").disabled = false;
+    document.getElementById("btnDoc").disabled = false;
+  } catch (e) {
+    document.getElementById("preview").innerHTML = '<div class="empty">아직 리포트가 없습니다.</div>';
+  }
+}
+
+document.getElementById("btnMd").onclick = () => {
+  if (!latestSection) return;
+  download(`${current}_${latestSection.date}_트렌드리포트.md`, latestSection.body, "text/markdown;charset=utf-8");
+};
+
+document.getElementById("btnDoc").onclick = () => {
+  if (!latestSection) return;
+  const title = `${current} 트렌드 리포트 (${latestSection.date})`;
+  const bodyHtml = mdToHtml(latestSection.body);
+  const doc = buildDocHtml(title, bodyHtml);
+  download(`${current}_${latestSection.date}_트렌드리포트.doc`, doc, "application/msword;charset=utf-8");
+};
+
+renderTabs();
+loadIndustry(current);
+</script>
+</body>
+</html>

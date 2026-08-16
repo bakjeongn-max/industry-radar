@@ -1,0 +1,56 @@
+name: industry-radar
+
+on:
+  schedule:
+    # 평일 07:00 KST = 22:00 UTC (전날)
+    - cron: "0 22 * * 0-4"
+    # 금요일 주간 롤업 18:00 KST = 09:00 UTC
+    - cron: "0 9 * * 5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "daily | weekly | check"
+        default: "daily"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore state
+        uses: actions/cache@v4
+        with:
+          path: .state
+          key: radar-state-${{ github.run_id }}
+          restore-keys: radar-state-
+
+      - name: Run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          if [ "$MODE" = "check" ]; then
+            python collect.py --check
+          elif [ "$MODE" = "weekly" ] || [ "${{ github.event.schedule }}" = "0 9 * * 5" ]; then
+            python collect.py --weekly
+          else
+            python collect.py
+          fi
+
+      - name: Commit logs
+        run: |
+          git config user.name  "industry-radar"
+          git config user.email "actions@github.com"
+          git add logs .state || true
+          git diff --staged --quiet || git commit -m "radar: $(date +%Y-%m-%d)"
+          git push || true

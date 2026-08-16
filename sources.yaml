@@ -1,0 +1,86 @@
+# =====================================================================
+#  sources.yaml — 산업 레이더 소스 정의
+# ---------------------------------------------------------------------
+#  feed 타입
+#    rss        : 표준 RSS/Atom. url 그대로 파싱
+#    gnews      : Google News RSS 검색. query만 쓰면 URL은 자동 생성
+#                 (기관 RSS가 없거나 죽었을 때의 안전망. 항상 살아있음)
+#
+#  ※ 직접 RSS(rss 타입)는 기관 사정으로 주소가 바뀌거나 사라집니다.
+#    반드시 `python collect.py --check` 로 한 번 검증하고 쓰세요.
+#    죽은 피드는 수집 시 자동 스킵되고 로그에만 남습니다.
+# =====================================================================
+
+defaults:
+  lookback_days: 2        # 최초 실행 시 며칠치까지 훑을지
+  max_items_per_feed: 15  # 피드당 최대 수집 건수 (토큰 폭주 방지)
+
+industries:
+
+  # ───────────────────────────────── 자동차
+  자동차:
+    emoji: "🚗"
+    feeds:
+      - { type: gnews, name: "완성차/전동화",   query: "전기차 OR 완성차 OR 배터리 산업동향" }
+      - { type: gnews, name: "SDV/자율주행",    query: "SDV OR 자율주행 OR 차량용반도체" }
+      - { type: gnews, name: "부품/공급망",     query: "자동차부품 OR 현대모비스 OR 공급망" }
+      - { type: gnews, name: "해외 통상",       query: "자동차 관세 OR IRA OR 수출 규제" }
+      - { type: gnews, name: "KAMA 자동차산업", query: "한국자동차모빌리티산업협회 OR KAMA 자동차 산업동향" }
+      - { type: gnews, name: "Automotive News", query: "글로벌 완성차 OEM 동향 OR 자동차업계 실적" }
+
+  # ───────────────────────────────── 건설
+  건설:
+    emoji: "🏗"
+    feeds:
+      - { type: gnews, name: "건설경기/수주",   query: "건설수주 OR 건설경기 OR 분양시장" }
+      - { type: gnews, name: "정책/규제",       query: "국토교통부 건설 정책 OR 중대재해처벌법" }
+      - { type: gnews, name: "해외건설",        query: "해외건설 수주 OR 중동 플랜트" }
+      - { type: gnews, name: "건설사 리스크",   query: "PF부실 OR 건설사 유동성" }
+      - { type: gnews, name: "국토교통부 보도", query: "국토교통부 보도자료 OR 국토부 건설 정책 발표" }
+      - { type: gnews, name: "대한경제",        query: "건설업계 동향 OR 건설사 실적" }
+
+  # ───────────────────────────────── 식품
+  식품:
+    emoji: "🍚"
+    feeds:
+      - { type: gnews, name: "식품 트렌드",     query: "식품 트렌드 OR 간편식 OR HMR 시장" }
+      - { type: gnews, name: "외식/프랜차이즈", query: "외식업계 OR 프랜차이즈 가맹점 동향" }
+      - { type: gnews, name: "K푸드 수출",      query: "K푸드 수출 OR 농식품 수출 실적" }
+      - { type: gnews, name: "규제/식약처",     query: "식약처 식품 표시 OR 원산지 규제" }
+      - { type: rss,   name: "식품음료신문",    url: "https://www.foodnews.co.kr/rss/allArticle.xml" }
+      - { type: gnews, name: "식품저널",        query: "식품산업 동향 OR 식품업계 뉴스" }
+
+  # ───────────────────────────────── 컨설팅
+  컨설팅:
+    emoji: "📊"
+    feeds:
+      - { type: gnews, name: "컨설팅 산업",     query: "컨설팅 업계 OR 맥킨지 OR BCG 보고서" }
+      - { type: gnews, name: "기업 전략",       query: "기업 사업재편 OR 신사업 전략 발표" }
+      - { type: rss,   name: "McKinsey",        url: "https://www.mckinsey.com/insights/rss" }
+      - { type: gnews, name: "BCG Publications",query: "BCG 보고서 OR 보스턴컨설팅그룹 인사이트" }
+      - { type: gnews, name: "Deloitte Insights",query: "딜로이트 인사이트 OR Deloitte 보고서" }
+      - { type: gnews, name: "HBR",             query: "하버드비즈니스리뷰 OR HBR 인사이트" }
+
+# =====================================================================
+#  RSS를 제공하지 않아 자동 수집이 어려운 고가치 소스
+#  → 주 1회 수동 확인 대상. 리포트 PDF는 여기가 압도적으로 밀도 높음
+# =====================================================================
+manual_watchlist:
+  - name: "한경 컨센서스 (증권사 산업분석 리포트 무료 PDF)"
+    url: "https://consensus.hankyung.com/analysis/list?skinType=industry"
+    freq: "주 1회 · 자동차/건설/음식료 섹터"
+  - name: "DART 공시 (사업보고서 '사업의 내용')"
+    url: "https://opendart.fss.or.kr"
+    freq: "분기 1회 · OpenAPI 키 발급 시 자동화 가능"
+  - name: "KOTRA 해외시장뉴스"
+    url: "https://dream.kotra.or.kr"
+    freq: "주 1회 · 해외영업 기획용"
+  - name: "건설산업연구원 건설동향브리핑"
+    url: "https://www.cerik.re.kr"
+    freq: "주 1회"
+  - name: "한국자동차연구원 산업동향"
+    url: "https://www.katech.re.kr"
+    freq: "격주"
+  - name: "식품산업통계정보 aTFIS"
+    url: "https://www.atfis.or.kr"
+    freq: "월 1회 · 시장규모 데이터"
