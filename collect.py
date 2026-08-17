@@ -26,6 +26,13 @@ REQUEST_TIMEOUT = 10
 REQUEST_HEADERS = {"User-Agent": "industry-radar/1.0"}
 MODEL = "claude-sonnet-5"
 MAX_TOKENS = 4096
+KST = timezone(timedelta(hours=9))
+
+
+def today_kst() -> datetime:
+    """GitHub Actions 러너는 시스템 시간이 UTC라 datetime.now()를 그대로 쓰면
+    07:00 KST 실행분이 전날 날짜로 찍힌다. 항상 KST 기준으로 오늘을 계산한다."""
+    return datetime.now(KST).replace(tzinfo=None)
 
 
 def load_sources() -> dict:
@@ -112,7 +119,8 @@ def collect_feed_items(feed: dict, max_items: int, cutoff: datetime) -> list:
 
 
 def collect_industry(cfg: dict, defaults: dict, seen: set) -> list:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=defaults.get("lookback_days", 2))
+    lookback_days = cfg.get("lookback_days", defaults.get("lookback_days", 2))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
     max_items = defaults.get("max_items_per_feed", 15)
     collected = []
     for feed in cfg["feeds"]:
@@ -197,7 +205,7 @@ def make_client():
 def cmd_run(sources: dict, only) -> None:
     client = make_client()
     defaults = sources.get("defaults", {})
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = today_kst().strftime("%Y-%m-%d")
 
     for name, cfg in sources["industries"].items():
         if only and name not in only:
@@ -220,8 +228,8 @@ def cmd_run(sources: dict, only) -> None:
 
 def cmd_weekly(sources: dict, only) -> None:
     client = make_client()
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    cutoff = datetime.now() - timedelta(days=7)
+    date_str = today_kst().strftime("%Y-%m-%d")
+    cutoff = today_kst() - timedelta(days=7)
     section_re = re.compile(r"^## (\d{4}-\d{2}-\d{2}) · ", re.MULTILINE)
 
     for name in sources["industries"]:

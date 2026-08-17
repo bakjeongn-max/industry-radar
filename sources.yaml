@@ -53,6 +53,7 @@ industries:
   # ───────────────────────────────── 컨설팅
   컨설팅:
     emoji: "📊"
+    lookback_days: 10   # 맥킨지/BCG/딜로이트/HBR류는 주 단위 발행이라 2일 컷오프면 매번 0건
     feeds:
       - { type: gnews, name: "컨설팅 산업",     query: "컨설팅 업계 OR 맥킨지 OR BCG 보고서" }
       - { type: gnews, name: "기업 전략",       query: "기업 사업재편 OR 신사업 전략 발표" }
