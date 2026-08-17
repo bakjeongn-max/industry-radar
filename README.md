@@ -61,7 +61,7 @@ python collect.py --only 식품  # 특정 산업만
 | 원하는 것 | 고칠 곳 |
 |---|---|
 | 소스 추가·교체 | `sources.yaml` → `industries.{산업}.feeds` |
-| 산업 추가 | `sources.yaml`에 블록 추가 + `prompts/{산업명}.md` 생성 |
+| 산업 추가 | `python add_industry.py {산업명}` — `sources.yaml` 블록 + `prompts/{산업명}.md` + `index.html` 탭까지 자동 생성 (먼저 `--dry-run`으로 확인 권장) |
 | 요약 관점 변경 | `prompts/{산업}.md` |
 | 출력 형식 변경 | `prompts/_base.md` |
 | 수집량 조절 | `sources.yaml` → `defaults.max_items_per_feed` |
